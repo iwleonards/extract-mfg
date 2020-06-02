@@ -8,7 +8,7 @@ If you include "--install_backdoor=y" as a command argument then it will install
 ## Instructions
 1) Downgrade your Gateway
    - BGW210-700 to version [1.0.29](Firmware/spTurquoise210-700_1.0.29.bin?raw=true)
-   - NVG599 to version [9.2.2h0d83](Firmware/spnvg599-9.2.2h0d83.bin?raw=true)
+   - NVG599 to version [9.2.2h0d83](Firmware/spnvg599-9.2.2h0d83.bin?raw=true) OR upgrade to version [9.2.2h0d79](Firmware/spnvg599-cferom-9.2.2h0d79.bin?raw=true)
 2) Install Python3 if you don't already have it
 3) Install python dependencies
    - pip install requests
