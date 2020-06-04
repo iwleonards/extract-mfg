@@ -126,6 +126,7 @@ def start():
             sys.exit(0)
     else:
         print("Incorrect Gateway Model, this script is only known to work on a BGW210-700, NVG599, or NVG589")
+        sys.exit(0)
 
     # Attempt to extract files from telnet port 28 or 9999
     if telnet28:
