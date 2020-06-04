@@ -18,6 +18,7 @@ import threading
 
 LATEST_BGW210_FIRMWARE = "2.6.4"
 LATEST_NVG599_FIRMWARE = "11.5.0h0d51"
+LATEST_NVG589_FIRMWARE = "11.5.0h0d51"
 
 SERVER_ADDRESS = "192.168.1.50"
 SERVER_PORT = 8000
@@ -94,7 +95,7 @@ def start():
     directory = model_number + "_" + serial_number
 
     latestFirmware = ""
-    updateFirmware = args.updateFirmware and ver_string != LATEST_BGW210_FIRMWARE and ver_string != LATEST_NVG599_FIRMWARE
+    updateFirmware = args.updateFirmware and ver_string != LATEST_BGW210_FIRMWARE and ver_string != LATEST_NVG599_FIRMWARE and ver_string != LATEST_NVG589_FIRMWARE
     if updateFirmware:
         thread = threading.Thread(target=create_server, args=())
         thread.daemon = True
@@ -103,7 +104,7 @@ def start():
     telnet28 = is_open(28)
     telnet9999 = is_open(9999)
     if model_number.find("BGW210-700") != -1:
-        latestFirmware = "http://"+SERVER_ADDRESS+":"+str(SERVER_PORT)+"/firmware/spTurquoise210-700_"+LATEST_BGW210_FIRMWARE+".bin"
+        latestFirmware = "http://"+SERVER_ADDRESS+":"+str(SERVER_PORT)+"/firmware/bgw210-700/spTurquoise210-700_"+LATEST_BGW210_FIRMWARE+".bin"
         if ver_string.find("1.0.29") == -1 and not telnet28 and not telnet9999:
             print("Incorrect software version")
             print("Downgrade BGW210-700 to 1.0.29 and come back")
@@ -111,17 +112,22 @@ def start():
         elif not telnet28 and not telnet9999:
             exploit(args.access_code)
     elif model_number.find("NVG599") != -1:
-        latestFirmware = "http://"+SERVER_ADDRESS+":"+str(SERVER_PORT)+"/firmware/spnvg599-"+LATEST_NVG599_FIRMWARE+".bin"
+        latestFirmware = "http://"+SERVER_ADDRESS+":"+str(SERVER_PORT)+"/firmware/nvg599/spnvg599-"+LATEST_NVG599_FIRMWARE+".bin"
         if ver_string.find("9.2.2h0d83") == -1 and ver_string.find("9.2.2h0d79") == -1 and not telnet28 and not telnet9999:
             print("Incorrect software version")
             print("Downgrade NVG599 to 9.2.2h0d83, or upgrade to 9.2.2h0d79 and come back")
             sys.exit(0)
         elif not telnet28 and not telnet9999:
             exploit(args.access_code)
+    elif model_number.find("NVG589") != -1:
+        latestFirmware = "http://"+SERVER_ADDRESS+":"+str(SERVER_PORT)+"/firmware/nvg589/spnvg589-"+LATEST_NVG589_FIRMWARE+".bin"
+        if not telnet28 and not telnet9999:
+            print("Telnet is not open on port 28 or 9999, root then start telnet and come back")
+            sys.exit(0)
     else:
-        print("Incorrect Gateway Model for Exploit, it only works on a BGW210-700 or NVG599")
+        print("Incorrect Gateway Model, this script is only known to work on a BGW210-700, NVG599, or NVG589")
 
-    # Not a BGW210 or NVG599 but can still attempt to extract files. This part works for already rooted NVG589 or other models
+    # Attempt to extract files from telnet port 28 or 9999
     if telnet28:
         print("Attempting to extract files from telnet port 28")
         extractfiles(28, args.access_code, False, directory, latestFirmware, updateFirmware)
