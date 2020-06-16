@@ -3,7 +3,9 @@ Extract mfg.dat and AT&T root certs from BGW210 or NVG599
 
 This script assumes it is being run on a Windows PC with the mfg_dat_decode.exe program. It will exploit the gateway and download the certs as well run the mfg_dat_decode.exe to save the EAP-TLS credentials into a local folder. The local folder will be named `<ModelNumber>_<SerialNumber>` and will exist in the same directory as the script.
 
-If you include "--install_backdoor=y" as a command argument then it will install a telnet backdoor on port 28 that will persist with reboots and firmware upgrades.
+If you include "--installBackdoor" as a command argument then it will install a telnet backdoor on port 28 that will persist with reboots and firmware upgrades.
+
+You can also include "--updateFirmware" as a command argument to install the latest firmware stored in this repo as the last step of the process.
 
 ## Instructions
 1) Downgrade your Gateway
@@ -14,7 +16,7 @@ If you include "--install_backdoor=y" as a command argument then it will install
    - pip install requests
    - pip install bs4
    - pip install wget
-4) Run `python extract_mfg.py --access_code="XXXXXXXX" --install_backdoor=y`
+4) Run `python extract_mfg.py --access_code="XXXXXXXX" --installBackdoor --updateFirmware`
 
 ## Credits & References
 - [Streiw](https://www.reddit.com/r/ATT/comments/g59rwm/bgw210700_root_exploitbypass): BGW210 Exploit Instructions
