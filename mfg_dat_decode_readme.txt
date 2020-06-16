@@ -1,6 +1,6 @@
 802.1x Credential Extraction Tool
 Copyright (c) 2018 devicelocksmith.com
-Version: 1.02
+Version: 1.04
 
 
 1. Access shell on a rooted Motorola or Arris FTTH router.
