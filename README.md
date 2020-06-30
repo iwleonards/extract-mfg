@@ -5,7 +5,7 @@ This script assumes it is being run on a Windows PC with the mfg_dat_decode.exe 
 
 If you include "--installBackdoor" as a command argument then it will install a telnet backdoor on port 28 that will persist with reboots and firmware upgrades.
 
-You can also include "--updateFirmware" as a command argument to install the latest firmware stored in this repo as the last step of the process.
+You can also include "--updateFirmware" as a command argument to install the latest firmware stored in this repo as the last step of the process. This will start a local http server that the gateway will try to download the firmware from so Windows firewall may block this by default. Also, you would need to make sure your local IP address matches the "SERVER_ADDRESS" value in the script for it to work correctly.
 
 ## Instructions
 1) Downgrade your Gateway
@@ -16,7 +16,7 @@ You can also include "--updateFirmware" as a command argument to install the lat
    - pip install requests
    - pip install bs4
    - pip install wget
-4) Run `python extract_mfg.py --access_code="XXXXXXXX" --installBackdoor --updateFirmware`
+4) Run `python extract_mfg.py --access_code="XXXXXXXX" --installBackdoor`
 
 ## Credits & References
 - [Streiw](https://www.reddit.com/r/ATT/comments/g59rwm/bgw210700_root_exploitbypass): BGW210 Exploit Instructions
