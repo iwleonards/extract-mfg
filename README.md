@@ -15,6 +15,7 @@ You can also include "--updateFirmware" as a command argument to install the lat
 3) Install python dependencies
    - pip install requests
    - pip install bs4
+   - pip install lxml
    - pip install wget
 4) Run `python extract_mfg.py --access_code="XXXXXXXX" --installBackdoor`
 
