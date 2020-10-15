@@ -16,7 +16,7 @@ You can also include `--update_firmware` as a command argument to install the la
 2. Install Python3 if you don't already have it
 3. Install Python dependencies:
 	```
-	pip install requests bs4 wget
+	pip install requests bs4 lxml wget
 	```
 4. Run the script: 
 	```
